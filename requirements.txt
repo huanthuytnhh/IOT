@@ -1,0 +1,12 @@
+django
+speechrecognition  # Correct name (no underscore)
+pyaudio
+gtts
+pygame
+torch
+numpy
+librosa
+soundfile
+python-dotenv
+pydub
+pyaudio
