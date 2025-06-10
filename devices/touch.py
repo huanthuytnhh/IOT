@@ -1,29 +1,24 @@
-import RPi.GPIO as GPIO
+from gpiozero import Button
 import time
 
 class TouchSensor:
     def __init__(self, pin):
         self.pin = pin
-        # Thiết lập chế độ đánh số chân GPIO
-        GPIO.setmode(GPIO.BCM)
-        # Đặt chân GPIO làm đầu vào và bật lên điện trở pull-up
-        GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        # Sử dụng gpiozero Button để thay thế GPIO.IN với pull-up
+        self.sensor = Button(self.pin, pull_up=True)
 
     def is_touched(self):
-        # Đọc trạng thái của cảm biến chạm
-        return GPIO.input(self.pin) == GPIO.HIGH
+        # Kiểm tra xem cảm biến có bị chạm hay không
+        return self.sensor.is_pressed
 
-    def cleanup(self):
-        # Dọn dẹp GPIO
-        GPIO.cleanup()
-
-# # Ví dụ sử dụng class TouchSensor
+# Ví dụ sử dụng class TouchSensor
 # if __name__ == "__main__":
 #     touch_sensor_pin = 22
 #     touch_sensor = TouchSensor(touch_sensor_pin)
 
 #     try:
 #         while True:
+#             print(f"Sensor state: {touch_sensor.is_touched()}")  # In ra trạng thái của cảm biến
 #             if touch_sensor.is_touched():
 #                 print("Cảm biến chạm đã được chạm")
 #             else:
@@ -33,5 +28,3 @@ class TouchSensor:
 
 #     except KeyboardInterrupt:
 #         print("Kết thúc chương trình.")
-#     finally:
-#         touch_sensor.cleanup()

@@ -1,58 +1,49 @@
-import RPi.GPIO as GPIO
-import time
+from gpiozero import Servo
+from time import sleep
 
 class ServoController:
-    def __init__(self, pin=23, frequency=50):
-        """Initialize the GPIO pin for the servo and set PWM frequency."""
-        self.pin = pin
-        self.frequency = frequency
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.pin, GPIO.OUT)
-        self.servo = GPIO.PWM(self.pin, self.frequency)
-        self.servo.start(0)
+    def __init__(self, pin=23):
+        """Khởi tạo GPIO pin cho servo với gpiozero."""
+        self.servo = Servo(pin)  # Kết nối servo với pin GPIO được chỉ định
 
     def set_servo_angle(self, angle):
-        """Move the servo to a specific angle based on the PWM duty cycle."""
-        duty_cycle = (angle / 18.0) + 2  # Convert angle to PWM duty cycle
-        self.servo.ChangeDutyCycle(duty_cycle)
-        time.sleep(1)  # Allow the servo time to move to the position
-        self.servo.ChangeDutyCycle(0)  # Stop the PWM signal
+        """Điều khiển servo đến góc cụ thể."""
+        if 0 <= angle <= 180:
+            # Chuyển góc thành giá trị từ -1 đến 1 cho servo
+            duty_cycle = (angle - 90) / 90  # Chuyển đổi góc thành giá trị từ -1 đến 1
+            self.servo.value = duty_cycle
+        else:
+            print("Lỗi: Góc phải trong khoảng từ 0 đến 180 độ.")
 
     def open_door(self, angle):
-        """Open the door to the pre-defined open position (angle degrees)."""
+        """Mở cửa đến góc mở (angle degrees)."""
         self.set_servo_angle(angle)
 
-    def close_door(self, angle):
-        """Close the door by returning it to the zero degree position."""
-        self.set_servo_angle(angle)
+    def close_door(self):
+        """Đóng cửa (quay về vị trí 0 độ)."""
+        self.set_servo_angle(0)
 
     def custom_angle(self, angle):
-        """Move the door to a custom angle specified by the user."""
-        if 0 <= angle <= 180:
-            self.set_servo_angle(angle)
-        else:
-            print("Error: Angle must be between 0 and 180 degrees.")
+        """Điều khiển servo đến góc tùy chỉnh."""
+        self.set_servo_angle(angle)
 
     def open_door_close_door(self, angle, time_to_wait):
-        """Open and close door"""
-        self.open_door(angle)  # Adjust the door to angle degrees
-        time.sleep(time_to_wait)  # Keep the door open for 3 seconds
-        self.close_door(110)  # Close the door to an angle of 0 degrees
-        
-    def cleanup(self):
-        """Clean up GPIO and stop PWM when done using the controller."""
-        self.servo.stop()
-        GPIO.cleanup()
+        """Mở và đóng cửa."""
+        self.open_door(angle)  # Mở cửa đến góc đã chỉ định
+        sleep(time_to_wait)  # Giữ cửa mở trong khoảng thời gian đã chỉ định
+        self.close_door()  # Đóng cửa về vị trí 0 độ
 
-# Example usage
-# if __name__ == "__main__":
-#     door_controller = ServoController(pin=7)
+# Ví dụ sử dụng
+if __name__ == "__main__":
+    door_controller = ServoController(pin=23)  # Kết nối servo với pin GPIO 23
     
-#     # Example of opening and closing the door
-#     door_controller.open_door_close_door(0, 3)
+    # Mở và đóng cửa
+    door_controller.open_door_close_door(90, 3)  # Mở cửa đến 90 độ và đợi 3 giây
+    door_controller.open_door_close_door(180, 3)  # Mở cửa đến 90 độ và đợi 3 giây
+    door_controller.close_door()  # Đóng cửa về vị trí 0 độ
+    door_controller.open_door_close_door(0, 3)  # Đóng cửa về vị trí 0 độ và đợi 3 giây
+    # Tùy chọn điều chỉnh góc
+    # door_controller.custom_angle(45)  # Điều chỉnh cửa đến 45 độ
 
-#     # Optionally set a custom angle
-#     # door_controller.custom_angle(90)  # Adjust the door to 90 degrees
-
-#     # Cleanup GPIO and PWM
-#     door_controller.cleanup()
+    # Cleanup GPIO sau khi sử dụng
+    print("Hoàn tất chương trình.")

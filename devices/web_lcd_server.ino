@@ -4,16 +4,17 @@
 #include "SPI.h"
 #include <TFT_eSPI.h>
 
-const char* ssid = "BIBO1-5G";
-const char* password = "bibo617487";
+const char *ssid = "HUAN THUY";
+const char *password = "huanthuy";
 const int serverPort = 10000;
 
 TFT_eSPI tft = TFT_eSPI();
 WebServer server(serverPort);
 
-struct DeviceStatus {
-    String name;
-    int status;
+struct DeviceStatus
+{
+  String name;
+  int status;
 };
 
 DeviceStatus deviceStatus[] = {
@@ -22,14 +23,14 @@ DeviceStatus deviceStatus[] = {
     {"Living Led", 0},
     {"Kitchen Led", 0},
     {"Parent Led", 0},
-    {"Children Led", 0}
-};
+    {"Children Led", 0}};
 
-String deviceTypes[] = {"led", "door", "led", "led",  "led", "led"};
+String deviceTypes[] = {"led", "door", "led", "led", "led", "led"};
 double temperature = 0;
 double humidity = 0;
 
-void setup() {
+void setup()
+{
   Serial.begin(115200);
   startWiFi();
   startWebServer();
@@ -39,15 +40,18 @@ void setup() {
   drawTable();
 }
 
-void loop() {
+void loop()
+{
   server.handleClient();
 }
 
-void startWiFi() {
+void startWiFi()
+{
   WiFi.begin(ssid, password);
   Serial.print("Connecting to ");
   Serial.print(ssid);
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
     delay(1000);
     Serial.print(".");
   }
@@ -56,9 +60,11 @@ void startWiFi() {
   Serial.println(WiFi.localIP());
 }
 
-void startWebServer() {
+void startWebServer()
+{
 
-  server.on("/message", HTTP_POST, []() {
+  server.on("/message", HTTP_POST, []()
+            {
     bool allArgsPresent = true;
     String missingArgs = "";
 
@@ -140,14 +146,14 @@ void startWebServer() {
     } else {
       missingArgs.remove(missingArgs.length() - 2);  // Remove the last comma and space
       server.send(400, "text/plain; charset=utf-8", "Missing arguments: " + missingArgs);
-    }
-  });
+    } });
 
   server.begin();
   Serial.println("HTTP server started on port " + String(serverPort));
 }
 
-void drawTable() {
+void drawTable()
+{
   int startX = 10;
   int startY = 10;
   int cellWidth = 100;
@@ -166,8 +172,10 @@ void drawTable() {
   tft.drawRect(startX - 1, startY - 1, tableWidth + 2, tableHeight + dhtHeight + 2, TFT_BLUE);
   tft.setTextWrap(true);
 
-  for (int i = 0; i < 2; i++) {
-    for (int j = 0; j < 3; j++) {
+  for (int i = 0; i < 2; i++)
+  {
+    for (int j = 0; j < 3; j++)
+    {
       int index = i * 3 + j;
       int color = deviceStatus[index].status == 1 ? TFT_GREEN : TFT_RED;
       tft.drawRect(startX + j * cellWidth, startY + (i + 1) * cellHeight, cellWidth, cellHeight, TFT_BLUE);
@@ -177,19 +185,25 @@ void drawTable() {
       tft.setTextDatum(TC_DATUM);
       String text = deviceStatus[index].name;
       int spaceIndex = text.indexOf(' ');
-      if (spaceIndex != -1) {
+      if (spaceIndex != -1)
+      {
         String firstWord = text.substring(0, spaceIndex);
         String secondWord = text.substring(spaceIndex + 1);
         tft.drawString(firstWord, startX + 50 + j * cellWidth, startY + 5 + (i + 1) * cellHeight);
         tft.drawString(secondWord, startX + 50 + j * cellWidth, startY + 5 + (i + 1) * cellHeight + tft.fontHeight());
-      } else {
+      }
+      else
+      {
         tft.drawString(text, startX + 50 + j * cellWidth, startY + 5 + (i + 1) * cellHeight);
       }
 
       tft.setTextDatum(TL_DATUM);
-      if (deviceTypes[index] == "door") {
+      if (deviceTypes[index] == "door")
+      {
         tft.fillRect(startX + 50 + j * cellWidth, startY + 40 + (i + 1) * cellHeight, 10, 15, deviceStatus[index].status == 1 ? TFT_BLUE : TFT_YELLOW);
-      } else {
+      }
+      else
+      {
         tft.fillCircle(startX + 50 + j * cellWidth, startY + 45 + (i + 1) * cellHeight, 10, deviceStatus[index].status == 1 ? TFT_BLUE : TFT_YELLOW);
       }
     }
