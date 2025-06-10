@@ -1,6 +1,7 @@
-import RPi.GPIO as GPIO
+from gpiozero import DigitalOutputDevice
+import adafruit_dht
+import board
 import time
-import Adafruit_DHT
 
 class DHTSensor:
     def __init__(self, high_pin, data_pin, low_pin):
@@ -8,41 +9,54 @@ class DHTSensor:
         self.data_pin = data_pin
         self.low_pin = low_pin
 
-        # Thiết lập chế độ đánh số chân
-        GPIO.setmode(GPIO.BCM)
+        # Use gpiozero to control high_pin (VCC) and low_pin (GND)
+        self.high_output = DigitalOutputDevice(high_pin)
+        self.low_output = DigitalOutputDevice(low_pin)
 
-        # Thiết lập chân GPIO làm đầu ra và đặt mức cao
-        GPIO.setup(self.high_pin, GPIO.OUT)
-        GPIO.output(self.high_pin, GPIO.HIGH)
+        # Activate high_pin (VCC) and low_pin (GND)
+        self.high_output.on()  # Set to 3.3V
+        self.low_output.off()  # Set to GND
 
-        # Thiết lập chân GPIO làm đầu ra và đặt mức thấp (GND)
-        GPIO.setup(self.low_pin, GPIO.OUT)
-        GPIO.output(self.low_pin, GPIO.LOW)
+        # Map GPIO pin number to board pin (e.g., GPIO19 -> D19)
+        try:
+            pin_mapping = getattr(board, f"D{data_pin}")
+            self.sensor = adafruit_dht.DHT11(pin_mapping)
+        except AttributeError:
+            raise ValueError(f"Invalid data pin: GPIO{data_pin}. Ensure it maps to a valid board pin (e.g., D19 for GPIO19).")
 
     def read_dht11(self):
-        humidity, temperature = Adafruit_DHT.read_retry(Adafruit_DHT.DHT11, self.data_pin)
-        if humidity is None: 
-            humidity = 0
-        if temperature is None:
-            temperature = 0
-        # if humidity is not None and temperature is not None:
-        #     print(f"Temperature: {temperature:.1f}°C  Humidity: {humidity:.1f}%")
-        # else:
-        #     print("Failed to retrieve data from humidity sensor")
-        return humidity, temperature
-    
-    def cleanup(self):
-        GPIO.cleanup()
+        max_attempts = 5
+        for _ in range(max_attempts):
+            try:
+                temperature = self.sensor.temperature
+                humidity = self.sensor.humidity
+                if humidity is None:
+                    humidity = 0
+                if temperature is None:
+                    temperature = 0
+                return humidity, temperature
+            except RuntimeError as e:
+                print(f"Error reading DHT11: {e}. Retrying...")
+                time.sleep(1)  # Wait before retrying
+        print("Failed to retrieve data from DHT11 after multiple attempts.")
+        return 0, 0
 
-# Sử dụng lớp DHTSensor với các tham số tùy chỉnh
+    def cleanup(self):
+        self.high_output.close()
+        self.low_output.close()
+        self.sensor.exit()  # Clean up DHT sensor
+
+# Test the DHTSensor class
 # try:
-#     dht_sensor = DHTSensor(13, 19, 26)  # Chân HIGH là 13, chân DATA là 19, chân LOW là 26
+#     # Initialize DHTSensor with GPIO pins (VCC=13, DATA=19, GND=26)
+#     dht_sensor = DHTSensor(high_pin=13, data_pin=19, low_pin=26)
+    
 #     while True:
-#         print(dht_sensor.read_dht11())
-#         time.sleep(2)  # Đọc dữ liệu mỗi 2 giây
+#         humidity, temperature = dht_sensor.read_dht11()
+#         print(f"Temperature: {temperature:.1f}°C  Humidity: {humidity:.1f}%")
+#         time.sleep(2)  # Read data every 2 seconds
 
 # except KeyboardInterrupt:
 #     print("Program terminated")
-
 # finally:
-#     dht_sensor.cleanup()  # Dọn dẹp các thiết lập GPIO
+#     dht_sensor.cleanup()

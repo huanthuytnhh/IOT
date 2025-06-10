@@ -7,7 +7,7 @@ import torch
 import pyaudio
 from pydub import AudioSegment
 from gpiozero import Button
-import speech_recognition as sr
+
 import speaker_recognition.inference as inference
 import speaker_recognition.neural_net as neural_net
 
@@ -16,7 +16,7 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
 CHUNK = 512
-RECORD_SECONDS = 3
+RECORD_SECONDS = 5
 RAW_FILENAME = "test-new-model-mic/temp_audio_recording_raw.wav"
 RESAMPLED_FILENAME = "test-new-model-mic/temp_audio_recording_resampled_raw.wav"
 N_TIMES_DUPLICATE = 1  # Nhân bản âm thanh để đủ thời lượng nếu cần
@@ -67,17 +67,14 @@ def save_and_convert_audio():
     extended_audio = extend_audio(audio_test, times=N_TIMES_DUPLICATE)
     audio_embedding = get_embedding_from_audiosegment(extended_audio, encoder)
 
-    # So sánh với từng người
-    users = ["Trí", "Phát", "Thanh"]
-    distances = [
-        inference.compute_cosine_similarity(tri_base_embedding, audio_embedding),
-        # inference.compute_cosine_similarity(dat_base_embedding, audio_embedding),
-        inference.compute_cosine_similarity(phat_base_embedding, audio_embedding),
-        inference.compute_cosine_similarity(thanh_base_embedding, audio_embedding)
-    ]
-
+    # Compute cosine distances for all users
+    distances = {name: inference.compute_cosine_similarity(embedding, audio_embedding) for name, embedding in user_embeddings.items()}
+    
+    # Find the user with the smallest distance
+    min_distance_name = min(distances, key=distances.get)
+    
     print("Khoảng cách cosine:", distances)
-    print("👉 Người nói là:", users[distances.index(min(distances))])
+    print("👉 Người nói là:", min_distance_name)
 
 def record_audio():
     global frames
@@ -109,11 +106,16 @@ def prepare_base_embedding(file_path):
 
 # Load embedding của các người dùng
 print("🔄 Đang load mẫu giọng nói...")
-tri_base_embedding = prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Tri-Merge_Audio.wav")
-# dat_base_embedding = prepare_base_embedding("/home/tranductri2003/Code/PBL05_smart_home_with_voice_print_and_antifraud_ai/Dat-Merge_Audio.wav")
-phat_base_embedding = prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Phat-Merge_Audio.wav")
-thanh_base_embedding = prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Thanh-Merge_Audio.wav")
-print("✅ Đã load xong!")
+user_embeddings = {
+    "Trí": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Tri-Merge_Audio.wav"),
+    "Phát": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Phat-Merge_Audio.wav"),
+    "Thanh": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Thanh-Merge_Audio.wav"),
+    "Quang": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Quang-Merge_Audio.wav"),
+    "Quân": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Quan-Merge_Audio.wav"),
+    "Sum": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Sum-Merge_Audio.wav"),
+    "Đạt": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Dat-Merge_Audio.wav"),
+}
+print("✅ Đã load xong tất cả các mẫu giọng nói!")
 
 # Vòng lặp chính
 try:

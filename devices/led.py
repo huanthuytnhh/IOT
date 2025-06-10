@@ -27,22 +27,22 @@ class Led:
 
 
 # Sử dụng lớp Led
-try:
-    led_living = Led(4)
-    led_kitchen = Led(17)
-    led_children = Led(10)
-    led_parent = Led(11)
-    led_garage = Led(5)
+# try:
+#     led_living = Led(4)
+#     led_kitchen = Led(17)
+#     led_children = Led(10)
+#     led_parent = Led(11)
+#     led_garage = Led(5)
     
-    while True:
-        led_living.blink()  # Bật và tắt LED
-        led_kitchen.blink()  # Bật và tắt LED
-        led_children.blink()  # Bật và tắt LED
-        led_parent.blink()  # Bật và tắt LED
-        led_garage.blink()  # Bật và tắt LED
+#     while True:
+#         led_living.blink()  # Bật và tắt LED
+#         led_kitchen.blink()  # Bật và tắt LED
+#         led_children.blink()  # Bật và tắt LED
+#         led_parent.blink()  # Bật và tắt LED
+#         led_garage.blink()  # Bật và tắt LED
 
-except KeyboardInterrupt:
-    print("Program terminated")
-finally:
-    # Cleanup không cần thiết trong gpiozero đối với LED
-    print("Exiting program.")
+# except KeyboardInterrupt:
+#     print("Program terminated")
+# finally:
+#     # Cleanup không cần thiết trong gpiozero đối với LED
+#     print("Exiting program.")

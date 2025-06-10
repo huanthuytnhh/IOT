@@ -1,29 +1,43 @@
-import RPi.GPIO as GPIO
+from gpiozero import PWMOutputDevice, DigitalOutputDevice
 import time
 
-# Thiết lập chân GPIO
-ENA = 14
-IN1 = 15
-IN2 = 18
+# Define GPIO pins
+ENA = 14  # PWM pin for speed control
+IN1 = 15  # Direction pin 1
+IN2 = 18  # Direction pin 2
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(ENA, GPIO.OUT)
-GPIO.setup(IN1, GPIO.OUT)
-GPIO.setup(IN2, GPIO.OUT)
+# Initialize devices
+pwm = PWMOutputDevice(ENA, frequency=50)  # 50 Hz PWM
+in1 = DigitalOutputDevice(IN1)
+in2 = DigitalOutputDevice(IN2)
 
-# Tạo PWM cho ENA
-pwm = GPIO.PWM(ENA, 50)  # 100 Hz
-pwm.start(0)  # Bắt đầu với duty cycle 0%
+def open_door():
+    print("Opening door...")
+    in1.on()   # IN1 HIGH (forward)
+    in2.off()  # IN2 LOW
+    pwm.value = 0.35  # Increased to 50% duty cycle for faster speed
+    time.sleep(5)    # Run for 5 seconds
+    pwm.value = 0    # Stop motor
+    print("Door opened.")
+
+def close_door():
+    print("Closing door...")
+    in1.off()  # IN1 LOW
+    in2.on()   # IN2 HIGH (reverse)
+    pwm.value = 0.35  # Increased to 50% duty cycle for faster speed
+    time.sleep(5)    # Run for 5 seconds
+    pwm.value = 0    # Stop motor
+    print("Door closed.")
 
 try:
-    # Điều khiển động cơ
-    GPIO.output(IN1, GPIO.HIGH)
-    GPIO.output(IN2, GPIO.LOW)
-    pwm.ChangeDutyCycle(10)  # Duty cycle 50%
-    time.sleep(5)  # Chạy động cơ trong 5 giây
+    # Example sequence: open, wait, close, wait
+    open_door()
+    time.sleep(2)  # Pause for 2 seconds
+    close_door()
+    time.sleep(2)  # Pause for 2 seconds
+
 finally:
-    # Dừng động cơ và làm sạch GPIO
-    pwm.stop()
-    GPIO.output(IN1, GPIO.LOW)
-    GPIO.output(IN2, GPIO.LOW)
-    GPIO.cleanup()
+    # Ensure motor is stopped and pins are reset
+    pwm.value = 0
+    in1.off()
+    in2.off()

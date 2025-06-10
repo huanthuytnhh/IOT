@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Home Control</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f0f0f0;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .room, .sensors {
+      margin-bottom: 20px;
+      padding: 15px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .room h2, .sensors h2 {
+      margin-top: 0;
+      color: #555;
+    }
+    .device {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    label {
+      flex: 1;
+      margin-right: 10px;
+      color: #666;
+    }
+    input[type="checkbox"] {
+      margin-right: 10px;
+    }
+    button {
+      padding: 5px 10px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .sensors div {
+      margin-bottom: 10px;
+    }
+    @media (min-width: 600px) {
+      .room {
+        display: inline-block;
+        width: 45%;
+        margin-right: 4%;
+        vertical-align: top;
+      }
+      .sensors {
+        clear: both;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Smart Home Control</h1>
+  <div class="room">
+    <h2>Garage</h2>
+    <div class="device">
+      <label>LED</label>
+      <input type="checkbox" id="garage-led">
+    </div>
+    <div class="device">
+      <label>Door</label>
+      <span id="garage-door">Unknown</span>
+      <button id="toggle-garage-door">Toggle</button>
+    </div>
+  </div>
+  <div class="room">
+    <h2>Living Room</h2>
+    <div class="device">
+      <label>LED</label>
+      <input type="checkbox" id="living-led">
+    </div>
+  </div>
+  <div class="room">
+    <h2>Kitchen</h2>
+    <div class="device">
+      <label>LED</label>
+      <input type="checkbox" id="kitchen-led">
+    </div>
+  </div>
+  <div class="room">
+    <h2>Parent's Room</h2>
+    <div class="device">
+      <label>LED</label>
+      <input type="checkbox" id="parent-led">
+    </div>
+  </div>
+  <div class="room">
+    <h2>Children's Room</h2>
+    <div class="device">
+      <label>LED</label>
+      <input type="checkbox" id="children-led">
+    </div>
+  </div>
+  <div class="sensors">
+    <h2>Sensors</h2>
+    <div>
+      <label>Temperature</label>
+      <span id="temperature">N/A</span> °C
+    </div>
+    <div>
+      <label>Humidity</label>
+      <span id="humidity">N/A</span> %
+    </div>
+  </div>
+
+  <script>
+    const serverUrl = 'http://192.168.1.4:10000/message'; // Replace with your ESP32 IP
+
+    let state = {
+      "Garage Led": "off",
+      "Garage Door": "closed",
+      "Living Led": "off",
+      "Kitchen Led": "off",
+      "Parent Led": "off",
+      "Children Led": "off",
+      "Temperature": 0,
+      "Humidity": 0
+    };
+
+    function updateUI() {
+      document.getElementById('garage-led').checked = state["Garage Led"] === "on";
+      document.getElementById('garage-door').textContent = state["Garage Door"];
+      document.getElementById('living-led').checked = state["Living Led"] === "on";
+      document.getElementById('kitchen-led').checked = state["Kitchen Led"] === "on";
+      document.getElementById('parent-led').checked = state["Parent Led"] === "on";
+      document.getElementById('children-led').checked = state["Children Led"] === "on";
+      document.getElementById('temperature').textContent = state["Temperature"];
+      document.getElementById('humidity').textContent = state["Humidity"];
+    }
+
+    function fetchState() {
+      fetch(serverUrl, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(response => response.json())
+      .then(data => {
+        state = data;
+        updateUI();
+      })
+      .catch(error => console.error('Error fetching state:', error));
+    }
+
+    function sendStateToServer() {
+      fetch(serverUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state)
+      })
+      .then(response => response.json())
+      .then(data => {
+        state = data;
+        updateUI();
+      })
+      .catch(error => console.error('Error sending state:', error));
+    }
+
+    // Event listeners for controls
+    document.getElementById('garage-led').addEventListener('change', function() {
+      state["Garage Led"] = this.checked ? "on" : "off";
+      sendStateToServer();
+    });
+
+    document.getElementById('toggle-garage-door').addEventListener('click', function() {
+      state["Garage Door"] = state["Garage Door"] === "open" ? "closed" : "open";
+      sendStateToServer();
+    });
+
+    document.getElementById('living-led').addEventListener('change', function() {
+      state["Living Led"] = this.checked ? "on" : "off";
+      sendStateToServer();
+    });
+
+    document.getElementById('kitchen-led').addEventListener('change', function() {
+      state["Kitchen Led"] = this.checked ? "on" : "off";
+      sendStateToServer();
+    });
+
+    document.getElementById('parent-led').addEventListener('change', function() {
+      state["Parent Led"] = this.checked ? "on" : "off";
+      sendStateToServer();
+    });
+
+    document.getElementById('children-led').addEventListener('change', function() {
+      state["Children Led"] = this.checked ? "on" : "off";
+      sendStateToServer();
+    });
+
+    // Fetch initial state on load
+    window.addEventListener('load', fetchState);
+  </script>
+</body>
+</html>

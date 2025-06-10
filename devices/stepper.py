@@ -1,59 +1,81 @@
-import RPi.GPIO as GPIO
+from gpiozero import DigitalOutputDevice
 import time
 
 class StepperController:
     def __init__(self, pin1, pin2, pin3, pin4, steps_per_revolution=1024, delay=0.001):
-        self.StepPins = [pin1, pin2, pin3, pin4]
-        self.stepsPerRevolution = steps_per_revolution
+        self.step_pins = [
+            DigitalOutputDevice(pin1),
+            DigitalOutputDevice(pin2),
+            DigitalOutputDevice(pin3),
+            DigitalOutputDevice(pin4)
+        ]
+        self.steps_per_revolution = steps_per_revolution
         self.delay = delay
-        self.Seq = [[1, 0, 0, 1],
-                    [1, 0, 0, 0],
-                    [1, 1, 0, 0],
-                    [0, 1, 0, 0],
-                    [0, 1, 1, 0],
-                    [0, 0, 1, 0],
-                    [0, 0, 1, 1],
-                    [0, 0, 0, 1]]
+        self.step_sequence = [
+            [1, 0, 0, 1],
+            [1, 0, 0, 0],
+            [1, 1, 0, 0],
+            [0, 1, 0, 0],
+            [0, 1, 1, 0],
+            [0, 0, 1, 0],
+            [0, 0, 1, 1],
+            [0, 0, 0, 1]
+        ]
+        # Initialize all pins to off
+        for pin in self.step_pins:
+            pin.off()
 
-        GPIO.setmode(GPIO.BCM)
-        for pin in self.StepPins:
-            GPIO.setup(pin, GPIO.OUT)
-            GPIO.output(pin, False)
-
-    def step(self, stepper, steps):
-        for _ in range(steps):
-            for pin in range(4):
-                GPIO.output(self.StepPins[pin], stepper[pin])
-            time.sleep(self.delay)
+    def step(self, sequence):
+        for pin_index in range(4):
+            if sequence[pin_index] == 1:
+                self.step_pins[pin_index].on()
+            else:
+                self.step_pins[pin_index].off()
+        time.sleep(self.delay)
 
     def rotate(self, direction, revolutions):
-        total_steps = self.stepsPerRevolution * revolutions
-        if direction == "forward":
-            for i in range(total_steps):
-                self.step(self.Seq[i % 8], 1)
-        elif direction == "backward":
-            for i in range(total_steps - 1, -1, -1):
-                self.step(self.Seq[i % 8], 1)
+        try:
+            total_steps = int(self.steps_per_revolution * revolutions)
+            if direction == "forward":
+                for i in range(total_steps):
+                    self.step(self.step_sequence[i % 8])
+            elif direction == "backward":
+                for i in range(total_steps - 1, -1, -1):
+                    self.step(self.step_sequence[i % 8])
+            else:
+                raise ValueError("Direction must be 'forward' or 'backward'")
+        except Exception as e:
+            print(f"Error during stepper rotation: {e}")
+            raise
 
     def cleanup(self):
-        GPIO.cleanup()
+        for pin in self.step_pins:
+            pin.off()
+            pin.close()
 
-# Sử dụng lớp StepperController
+# Test the StepperController class
 # if __name__ == "__main__":
-#     pin1 = 21  # Chân GPIO tương ứng với In1
-#     pin2 = 20  # Chân GPIO tương ứng với In2
-#     pin3 = 16  # Chân GPIO tương ứng với In3
-#     pin4 = 12  # Chân GPIO tương ứng với In4
+#     try:
+#         # Initialize StepperController with GPIO pins
+#         stepper = StepperController(pin1=21, pin2=20, pin3=16, pin4=12)
+        
+#         while True:
+#             user_input = input("Enter 'open' to rotate forward, 'close' to rotate backward, or 'exit' to quit: ")
+#             if user_input == "open":
+#                 print("Rotating forward...")
+#                 stepper.rotate("forward", 5)
+#             elif user_input == "close":
+#                 print("Rotating backward...")
+#                 stepper.rotate("backward", 5)
+#             elif user_input == "exit":
+#                 print("Exiting program...")
+#                 break
+#             else:
+#                 print("Invalid input! Use 'open', 'close', or 'exit'.")
     
-#     stepper = StepperController(pin1, pin2, pin3, pin4)
-
-#     while True:
-#         user_input = input("Enter 'open' to rotate forward, 'close' to rotate backward: ")
-#         if user_input == "open":
-#             stepper.rotate("forward", 5)
-#         elif user_input == "close":
-#             stepper.rotate("backward", 5)
-#         else:
-#             print("Invalid input!")
-
-#     stepper.cleanup()
+#     except KeyboardInterrupt:
+#         print("Program terminated by user")
+#     except Exception as e:
+#         print(f"Unexpected error: {e}")
+#     finally:
+#         stepper.cleanup()

@@ -1,74 +1,75 @@
-import RPi.GPIO as GPIO
-import time
+from gpiozero import PWMOutputDevice, DigitalOutputDevice
+from time import sleep
 
 class MotorController:
-    def __init__(self, enable_pin, motor_pin1, motor_pin2, switch_pin_open, switch_pin_close):
-        self.enable_pin = enable_pin
-        self.motor_pin1 = motor_pin1
-        self.motor_pin2 = motor_pin2
-        self.switch_pin_open = switch_pin_open
-        self.switch_pin_close = switch_pin_close
-
-        # Set up GPIO
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup([self.motor_pin1, self.motor_pin2, self.enable_pin], GPIO.OUT)
-        GPIO.setup(self.switch_pin_open, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(self.switch_pin_close, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-        # PWM setup
-        self.pwm = GPIO.PWM(self.enable_pin, 10)  # Set PWM frequency to 1 kHz
-        self.pwm.start(0)
+    def __init__(self, enable_pin, in1_pin, in2_pin):
+        # Initialize GPIO pins using gpiozero
+        self.pwm = PWMOutputDevice(enable_pin, frequency=50)  # PWM for speed control
+        self.in1 = DigitalOutputDevice(in1_pin)  # Direction pin 1
+        self.in2 = DigitalOutputDevice(in2_pin)  # Direction pin 2
 
     def stop_motor(self):
-        GPIO.output([self.motor_pin1, self.motor_pin2], GPIO.LOW)
-        self.pwm.ChangeDutyCycle(0)
+        """Stop the motor by disabling PWM and direction pins."""
+        self.pwm.value = 0
+        self.in1.off()
+        self.in2.off()
 
-    def open_door(self):
-        # Open the door
-        GPIO.output(self.motor_pin1, GPIO.HIGH)
-        GPIO.output(self.motor_pin2, GPIO.LOW)
-        self.pwm.ChangeDutyCycle(20)  # Set duty cycle to 20%
+    def open_door(self, speed=0.35):
+        """Start motor to open the door (e.g., forward direction)."""
+        print("Opening door...")
+        self.in1.on()   # Set direction for opening
+        self.in2.off()
+        self.pwm.value = speed  # Set speed
+        print(f"Motor running at {speed*100}% speed for opening.")
 
-    def close_door(self):
-        # Close the door
-        GPIO.output(self.motor_pin1, GPIO.LOW)
-        GPIO.output(self.motor_pin2, GPIO.HIGH)
-        self.pwm.ChangeDutyCycle(20)
+    def close_door(self, speed=0.35):
+        """Start motor to close the door (e.g., reverse direction)."""
+        print("Closing door...")
+        self.in1.off()  # Set direction for closing
+        self.in2.on()
+        self.pwm.value = speed  # Set speed
+        print(f"Motor running at {speed*100}% speed for closing.")
 
-    def open_door_close_door(self, time_to_wait):
-        is_moving = False
-        enough_time_to_wait_to_open = False
-        force_open = False
-
-        while True:
-            # print("Switch Open State:", GPIO.input(self.switch_pin_open))
-            # print("Switch Close State:", GPIO.input(self.switch_pin_close))
-
-            if is_moving == False:
-                self.open_door()
-                force_open = True
-                is_moving = True
-
-            if is_moving == True:
-                if GPIO.input(self.switch_pin_open) == GPIO.LOW and enough_time_to_wait_to_open == False:
-                    self.stop_motor()
-                    time.sleep(time_to_wait)
-                    self.close_door()
-                    enough_time_to_wait_to_open = True
-                    force_open = False
-
-                if GPIO.input(self.switch_pin_close) == GPIO.LOW and force_open == False:
-                    self.stop_motor()
-                    is_moving = False
-                    enough_time_to_wait_to_open = False
-                    break
-
+    def open_close_sequence(self, time_to_wait, open_duration=2, close_duration=2, speed=0.35):
+        """Open and close door for fixed durations without limit switches."""
+        try:
+            # Open the door
+            self.open_door(speed)
+            sleep(open_duration)  # Run motor for open_duration seconds
+            self.stop_motor()
+            print("Door opened and motor stopped.")
+            
+            # Wait before closing
+            print(f"Waiting for {time_to_wait} seconds...")
+            sleep(time_to_wait)
+            
+            # Close the door
+            self.close_door(speed)
+            sleep(close_duration)  # Run motor for close_duration seconds
+            self.stop_motor()
+            print("Door closed and motor stopped.")
+            
+        except Exception as e:
+            print(f"Error during operation: {e}")
+            self.stop_motor()
 
 # try:
-#     door_controller = MotorController(enable_pin=14, motor_pin1=15, motor_pin2=18, switch_pin_open=3, switch_pin_close=24)
-#     door_controller.open_door_close_door(3)
+#     # Initialize controller with specified GPIO pins (BCM numbering)
+#     # Ensure these pins match your physical wiring to the H-bridge
+#     door_controller = MotorController(
+#         enable_pin=14,  # ENA pin on your H-bridge (PWM for speed)
+#         in1_pin=15,     # IN1 pin on your H-bridge (Direction 1)
+#         in2_pin=18      # IN2 pin on your H-bridge (Direction 2)
+#     )
+#     print("Motor controller initialized.")
+#     # Example usage: open, wait, then close with default speed
+#     door_controller.open_close_sequence(time_to_wait=3, open_duration=2, close_duration=2, speed=0.35) # Increased speed to 70%
+
 # except KeyboardInterrupt:
-#     door_controller.stop_motor()
+#     print("Program interrupted by user.")
+# except Exception as e:
+#     print(f"An unexpected error occurred during initialization or operation: {e}")
 # finally:
-#     door_controller.stop_motor()
-#     GPIO.cleanup()
+#     if 'door_controller' in locals() and door_controller:
+#         door_controller.stop_motor()
+#         print("Motor stopped and GPIO cleaned up.")

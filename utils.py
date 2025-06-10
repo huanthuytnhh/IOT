@@ -4,6 +4,7 @@ from gtts import gTTS
 import pygame
 import os
 from pydub import AudioSegment
+import tempfile # Thêm import này
 
 def convert_sample_rate(input_path, output_path, target_sample_rate=16000):
     command = ['ffmpeg', '-hide_banner', '-loglevel', 'panic', '-y', '-i', input_path, '-ar', str(target_sample_rate), output_path]
@@ -15,126 +16,103 @@ def speech2text(wav_file, model):
 def extend_audio(audio, times=5):
     return audio * times
 
-# Function to extract action and device
 def extract_action_and_device(sentence):
-    # Updated regular expression pattern
-    pattern = r"(mở|đóng|bật|tắt|xem)\s+(cửa nhà xe|đèn nhà xe|cửa phòng khách|đèn phòng khách|cửa phòng ngủ ba mẹ|đèn phòng ngủ ba mẹ|cửa phòng ngủ con cái|đèn phòng ngủ con cái|đèn phòng bếp|cảm biến)\b"
+    # Định nghĩa các hành động
+    actions = r"(mở|đóng|bật|tắt|xem)"
+
+    # Định nghĩa các thiết bị với các biến thể có thể được nhận dạng
+    # Sắp xếp từ cụm từ dài nhất đến ngắn nhất để ưu tiên khớp chính xác hơn
+    devices = r"(cửa nhà xe|đèn nhà xe|cửa phòng khách|đèn phòng khách|cửa phòng ngủ ba mẹ|cửa phòng ngủ con cái|đèn phòng ngủ ba mẹ|đèn phòng ngủ con cái|đèn phòng bếp|cảm biến|phòng bố mẹ|phòng ba mẹ|phòng khách|nhà xe|phòng bếp|phòng ngủ con cái)"
+
+    # Kết hợp thành mẫu regex chính
+    pattern = rf"{actions}\s*(?:cửa\s*)?(?:phòng\s*ngủ\s*)?({devices})\b" # Điều chỉnh pattern để linh hoạt hơn
 
     match = re.search(pattern, sentence)
+
     if match:
         action = match.group(1).strip()
-        device = match.group(2).strip()
+        device_raw = match.group(2).strip()
+
+        # Ánh xạ các biến thể được nhận dạng về tên thiết bị chuẩn
+        if "nhà xe" in device_raw:
+            if action in ["mở", "đóng"]:
+                device = "cửa nhà xe"
+            elif action in ["bật", "tắt"]:
+                device = "đèn nhà xe"
+            else: # Nếu không phải hành động cụ thể, mặc định là cửa
+                device = "cửa nhà xe" 
+        elif "phòng khách" in device_raw:
+            if action in ["mở", "đóng"]:
+                device = "cửa phòng khách"
+            elif action in ["bật", "tắt"]:
+                device = "đèn phòng khách"
+            else:
+                device = "đèn phòng khách" # Mặc định là đèn
+        elif "phòng bố mẹ" in device_raw or "phòng ba mẹ" in device_raw:
+            device = "cửa phòng ngủ ba mẹ" # Ánh xạ về tên chuẩn
+            if action in ["bật", "tắt"]:
+                device = "đèn phòng ngủ ba mẹ"
+        elif "phòng ngủ con cái" in device_raw:
+            if action in ["mở", "đóng"]:
+                device = "cửa phòng ngủ con cái"
+            elif action in ["bật", "tắt"]:
+                device = "đèn phòng ngủ con cái"
+            else:
+                device = "đèn phòng ngủ con cái" # Mặc định là đèn
+        elif "phòng bếp" in device_raw:
+            device = "đèn phòng bếp" # Chỉ có đèn phòng bếp
+        else:
+            device = device_raw # Giữ nguyên nếu đã khớp chính xác
+
+        print(f"Hành động được nhận dạng: {action}, Thiết bị được nhận dạng: {device}")
         return action, device
     else:
+        print("Không tìm thấy khớp.")
+        print(f"Mẫu regex đã dùng: {pattern}")
+        print(f"Câu lệnh đầu vào: {sentence}")
         return None, None
 
 def speak_text(text, lang='vi', volume=1.0):
-    # Sử dụng gTTS để chuyển văn bản thành giọng nói
     tts = gTTS(text=text, lang=lang, slow=False)
-
-    # Lưu giọng nói vào một file tạm thời
     tts.save("temp.mp3")
-
-    # Khởi tạo pygame mixer
     pygame.mixer.init()
-
-    # Tải và phát file âm thanh
     pygame.mixer.music.load("temp.mp3")
-    
-    # Tăng âm lượng
     pygame.mixer.music.set_volume(volume)
-
     pygame.mixer.music.play()
-
-    # Chờ cho đến khi phát xong
     while pygame.mixer.music.get_busy():
         pygame.time.Clock().tick(10)
-
-    # Xóa file tạm
     os.remove("temp.mp3")
 
 def count_files_in_folder(folder_path, extension=None):
-    """
-    Đếm số lượng file trong thư mục. Có thể đếm toàn bộ file hoặc chỉ file với đuôi mở rộng cụ thể.
-
-    Parameters:
-    folder_path (str): Đường dẫn đến thư mục cần kiểm tra.
-    extension (str, optional): Đuôi mở rộng của file cần đếm (ví dụ: '.wav'). Nếu không có, đếm tất cả các file.
-
-    Returns:
-    int: Số lượng file trong thư mục.
-    """
     if extension:
         return len([file for file in os.listdir(folder_path) if file.endswith(extension)])
     else:
         return len(os.listdir(folder_path))
-    
+
 def split_audio(input_path, output_dir, first_segment_duration, segment_duration, num_segments):
-    """
-    Splits an audio file into multiple segments and saves them to the output directory.
-    
-    Args:
-    - input_path (str): Path to the input WAV file.
-    - output_dir (str): Directory where the output segments will be saved.
-    - first_segment_duration (int): Duration of the first segment in milliseconds.
-    - segment_duration (int): Duration of each subsequent segment in milliseconds.
-    - num_segments (int): Number of subsequent segments to create.
-    """
-    # Create the output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
-
-    # Read the input audio file
     audio = AudioSegment.from_wav(input_path)
-
-    # Create the first segment
     first_segment = audio[:first_segment_duration]
     first_segment.export(os.path.join(output_dir, "Dat_base_100s.wav"), format="wav")
-
-    # Create subsequent segments
     for i in range(1, num_segments + 1):
         start_time = first_segment_duration + (i - 1) * segment_duration
         end_time = start_time + segment_duration
         segment = audio[start_time:end_time]
         segment.export(os.path.join(output_dir, f"Dat_segment_3s_{i}.wav"), format="wav")
+    print("Các phân đoạn âm thanh đã được tạo thành công.")
 
-    print("Audio segments created successfully.")
-    
 def merge_audio_files(folder_path, output_file):
-    # Khởi tạo một đối tượng âm thanh trống
     combined_audio = AudioSegment.empty()
-
-    # Lặp qua tất cả các file trong thư mục
     for filename in sorted(os.listdir(folder_path)):
-        if filename.endswith('.wav'):  # Chỉ xử lý các file .wav
+        if filename.endswith('.wav'):
             file_path = os.path.join(folder_path, filename)
             audio = AudioSegment.from_wav(file_path)
             combined_audio += audio
-
-    # Xuất file âm thanh hợp nhất
     combined_audio.export(output_file, format="wav")
-    print(f"All audio files have been merged into {output_file}")
-    
-"""
-Tôi muốn mở cửa cuốn nhà xe
-Tôi muốn đóng cửa cuốn nhà xe
-Tôi muốn bật đèn nhà xe
-Tôi muốn tắt đèn nhà xe
+    print(f"Tất cả các file âm thanh đã được hợp nhất vào {output_file}")
 
-Tôi muốn mở cửa trượt phòng khách
-Tôi muốn bật đèn phòng khách
-Tôi muốn tắt đèn phòng khách
-
-Tôi muốn mở cửa phòng ngủ ba mẹ
-Tôi muốn bật đèn phòng ngủ ba mẹ
-Tôi muốn tắt đèn phòng ngủ ba mẹ
-
-Tôi muốn mở cửa phòng ngủ con cái
-Tôi muốn bật đèn phòng ngủ con cái
-Tôi muốn tắt đèn phòng ngủ con cái
-
-Tôi muốn bật đèn phòng bếp
-Tôi muốn tắt đèn phòng bếp
-
-Tôi muốn xem cảm biến
-"""
-
+# Ví dụ sử dụng:
+# Câu lệnh từ bạn: Văn bản được nhận dạng: xin chào tôi là lê ngọc thanh xin chào tôi là lê ngọc thanh mở cửa mở cửa phòng bố mẹ
+recognized_text = "xin chào tôi là lê ngọc thanh xin chào tôi là lê ngọc thanh mở cửa mở cửa phòng bố mẹ"
+action, device = extract_action_and_device(recognized_text)
+print(f"Kết quả cuối cùng: Hành động: {action}, Thiết bị: {device}")

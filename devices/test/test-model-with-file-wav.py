@@ -23,7 +23,8 @@ N_TIMES_DUPLICATE = 1  # Nhân bản âm thanh để đủ thời lượng nếu
 # --- Cấu hình đầu vào ---
 USE_MICROPHONE_INPUT = False
 # STATIC_WAV_FILE_PATH = "/home/pi/Desktop/PBL5/ai_model/data/user_C/user_C_50.wav"
-STATIC_WAV_FILE_PATH = "/home/pi/Desktop/PBL5/ai_model/data/user_E/user_E_17.wav"
+# STATIC_WAV_FILE_PATH = "/home/pi/Desktop/PBL5/ai_model/data/user_E/user_E_17.wav"
+STATIC_WAV_FILE_PATH = "/home/pi/Desktop/09_06/IOT/temp_recorded_audio/recording_resampled.wav"
 # STATIC_WAV_FILE_PATH = "/home/pi/Desktop/PBL5/ai_model/data/user_D/user_D_50.wav"
 # STATIC_WAV_FILE_PATH = "/home/pi/Desktop/PBL5/ai_model/data/user_A/user_A_20.wav"
 # STATIC_WAV_FILE_PATH = "/home/pi/Desktop/PBL05_smart_home_with_voice_print/AI Module/speaker_recognition_using_lstm/Data Tiếng nói để điều khiển nhà/Đạt/Dat_tat_den_garage.wav"
