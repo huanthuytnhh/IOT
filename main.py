@@ -520,10 +520,10 @@ def record_and_process_audio():
 
         if action_voice is None or device_voice is None:
             speak_text("Thiết bị hoặc hành động không nhận diện được từ câu lệnh.")
-            logger.warning(f"Thiết bị hoặc hành động không nhận diện được từ: '{recognized_text_content}'")
+            # logger.warning(f"Thiết bị hoặc hành động không nhận diện được từ: '{recognized_text_content}'")
         elif user_has_permission[predicted_speaker].get(device_voice, False):
             speak_text(f"Xin chào {predicted_speaker}. Bạn có quyền {action_voice} {device_voice}")
-            logger.info(f"{predicted_speaker} có quyền {action_voice} {device_voice}")
+            # logger.info(f"{predicted_speaker} có quyền {action_voice} {device_voice}")
             control_device_from_voice(device_voice, action_voice)
         else:
             speak_text(f"Xin chào {predicted_speaker}. Bạn không có quyền {action_voice} {device_voice}")
@@ -549,8 +549,8 @@ if __name__ == "__main__":
         # Initial status send
         send_status_to_esp()
 
-
-        logger.info("Smart Home System is Ready...")
+        speak_text(" Hệ thống nhà thông minh đã sẵn sàng. Bạn có thể bắt đầu điều khiển bằng giọng nói hoặc cảm biến chạm.")
+        # logger.info("Smart Home System is Ready...")
         while True:
             current_loop_time = time.time()
 

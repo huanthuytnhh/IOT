@@ -13,7 +13,7 @@ import os
 # Cấu hình ghi âm
 device_index = 1 # ⚠️ QUAN TRỌNG: Kiểm tra lại device_index trên Raspberry Pi của bạn
                   # Chạy `python -m sounddevice` trong terminal để xem danh sách thiết bị
-duration = 180    # Thời gian ghi âm (giây). Ví dụ: 5 giây hoặc 180 giây (3 phút)
+duration = 4   # Thời gian ghi âm (giây). Ví dụ: 5 giây hoặc 180 giây (3 phút)
 fs = 16000        # Tần số lấy mẫu 16kHz, chuẩn cho voice identification
 
 # --- THAY ĐỔI ĐƯỜNG DẪN LƯU FILE TẠI ĐÂY NẾU CẦN ---
