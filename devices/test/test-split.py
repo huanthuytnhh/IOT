@@ -28,5 +28,5 @@ def cut_wav_to_3_minutes(input_file):
         print(f"Error processing {input_file}: {e}")
 
 # Example usage
-input_wav = "/home/pi/Desktop/09_06/IOT/audio_samples/Thanh-Merge_Audio.wav"
+input_wav = "/home/pi/Desktop/09_06/IOT/audio_samples/Sum-Merge_Audio.wav"
 cut_wav_to_3_minutes(input_wav)

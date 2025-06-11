@@ -34,16 +34,53 @@ class ServoController:
         self.close_door()  # Đóng cửa về vị trí 0 độ
 
 # Ví dụ sử dụng
-# if __name__ == "__main__":
-#     door_controller = ServoController(pin=7)  # Kết nối servo với pin GPIO 23
-    
-#     # Mở và đóng cửa
-#     door_controller.open_door_close_door(90, 3)  # Mở cửa đến 90 độ và đợi 3 giây
-#     door_controller.open_door_close_door(180, 3)  # Mở cửa đến 90 độ và đợi 3 giây
-#     door_controller.close_door()  # Đóng cửa về vị trí 0 độ
-#     door_controller.open_door_close_door(0, 3)  # Đóng cửa về vị trí 0 độ và đợi 3 giây
-#     # Tùy chọn điều chỉnh góc
-#     # door_controller.custom_angle(45)  # Điều chỉnh cửa đến 45 độ
+if __name__ == "__main__":
+    servo_pin = 7
+    door_controller = None
 
-#     # Cleanup GPIO sau khi sử dụng
-#     print("Hoàn tất chương trình.")
+    try:
+        print("Đang khởi tạo ServoController...")
+        door_controller = ServoController(pin=servo_pin)
+        print("ServoController đã sẵn sàng.")
+        print("\nĐiều khiển Servo bằng bàn phím (sử dụng gpiozero):")
+        print("  'o [angle]' - Mở cửa đến góc (mặc định 90, ví dụ: o 120)")
+        print("  'c'         - Đóng cửa (về 0 độ)")
+        print("  'a <angle>' - Đặt cửa ở góc tùy chỉnh (ví dụ: a 45)")
+        print("  'q'         - Thoát chương trình")
+        print("Nhấn Ctrl+C để thoát bất cứ lúc nào.\n")
+
+        while True:
+            command_input = input("Nhập lệnh: ").strip().lower()
+
+            if command_input == 'q':
+                break
+            elif command_input == 'c':
+                door_controller.close_door()
+            elif command_input.startswith('o'):
+                parts = command_input.split()
+                angle = 90
+                if len(parts) > 1:
+                    try:
+                        angle = int(parts[1])
+                    except ValueError:
+                        print("Góc không hợp lệ. Sử dụng giá trị số.")
+                        continue
+                door_controller.open_door(angle)
+            elif command_input.startswith('a '):
+                try:
+                    angle_str = command_input.split(' ')[1]
+                    angle = int(angle_str)
+                    door_controller.custom_angle(angle)
+                except (IndexError, ValueError):
+                    print("Lệnh không hợp lệ. Sử dụng 'a <angle>', ví dụ: 'a 45'.")
+            else:
+                print("Lệnh không xác định. Vui lòng thử lại.")
+
+    except KeyboardInterrupt:
+        print("\nĐã nhận Ctrl+C. Đang thoát...")
+    except Exception as e:
+        print(f"Đã xảy ra lỗi không mong muốn: {e}")
+    finally:
+        if door_controller:
+            door_controller.cleanup()
+        print("Hoàn tất chương trình.")

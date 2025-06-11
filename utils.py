@@ -113,6 +113,37 @@ def merge_audio_files(folder_path, output_file):
 
 # Ví dụ sử dụng:
 # Câu lệnh từ bạn: Văn bản được nhận dạng: xin chào tôi là lê ngọc thanh xin chào tôi là lê ngọc thanh mở cửa mở cửa phòng bố mẹ
-recognized_text = "xin chào tôi là lê ngọc thanh xin chào tôi là lê ngọc thanh mở cửa mở cửa phòng bố mẹ"
-action, device = extract_action_and_device(recognized_text)
-print(f"Kết quả cuối cùng: Hành động: {action}, Thiết bị: {device}")
+# recognized_text = "xin chào tôi là lê ngọc thanh xin chào tôi là lê ngọc thanh mở cửa mở cửa phòng bố mẹ"
+# action, device = extract_action_and_device(recognized_text)
+# print(f"Kết quả cuối cùng: Hành động: {action}, Thiết bị: {device}")
+if __name__ == "__main__":
+    print("Bắt đầu thử nghiệm hàm speak_text...")
+    
+    # Kiểm tra xem pygame.mixer có được khởi tạo đúng cách không
+    try:
+        pygame.init() # Khởi tạo tất cả các module của pygame
+        pygame.mixer.init() # Khởi tạo cụ thể mixer
+        print("Pygame và Pygame Mixer đã được khởi tạo thành công.")
+    except Exception as e:
+        print(f"Lỗi khởi tạo Pygame: {e}")
+        print("Vui lòng đảm bảo Pygame được cài đặt và cấu hình đúng.")
+        exit()
+
+    text_to_speak1 = "Xin chào, đây là thử nghiệm giọng nói tiếng Việt."
+    speak_text(text_to_speak1)
+    
+    print("-" * 20)
+    
+    text_to_speak2 = "Mở cửa phòng khách."
+    speak_text(text_to_speak2, volume=0.8)
+
+    print("-" * 20)
+
+    text_to_speak3 = "Tắt đèn nhà xe."
+    speak_text(text_to_speak3, lang='vi') # lang='vi' là mặc định nhưng để rõ ràng
+
+    # Nếu bạn muốn dừng hẳn pygame sau khi tất cả đã xong
+    pygame.mixer.quit()
+    pygame.quit()
+    print("Pygame đã được đóng.")
+    print("Hoàn tất thử nghiệm.")

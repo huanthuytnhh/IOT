@@ -10,6 +10,7 @@ import time
 # from flask import Flask, request, jsonify # Commented out Flask imports
 import threading
 # import requests # Commented out requests as it's used for web communication
+import ast
 
 # Import các lớp tùy chỉnh
 from devices.servo import ServoController
@@ -20,9 +21,13 @@ from devices.dht11 import DHTSensor
 from devices.touch import TouchSensor
 import speaker_recognition.neural_net as neural_net
 import speaker_recognition.inference as inference
-from db.db_helper import query_members, query_permissions, connect_db
+from db.db_helper import query_members_files, query_permissions, connect_db
 from utils import convert_sample_rate, extract_action_and_device, speak_text, extend_audio
-
+import logging
+import json
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 # Load biến môi trường từ .env
 load_dotenv()
 import tempfile
@@ -49,7 +54,7 @@ SPEAKER_RECOGNITION_MODEL = neural_net.get_speaker_encoder(SPEAKER_RECOGNITION_M
 CONN = connect_db(DB_PATH)
 
 # Khởi tạo các thiết bị tùy chỉnh
-motor = MotorController(14,15,18)
+motor = MotorController( enable_pin=14,in1_pin=15,in2_pin=18 )
 stepper = StepperController(21, 20, 16, 12)
 servo_parent = ServoController(7)
 # servo_children = ServoController(8) # Commented out as it's commented in your original
@@ -126,24 +131,24 @@ def prepare_base_embedding(file_path):
 # Load embedding của các người dùng
 print("🔄 Đang load mẫu giọng nói...")
 user_embeddings = {}
-try:
-    user_embeddings = {
-        "Trí": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Tri-Merge_Audio.wav"),
-        "Phát": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Phat-Merge_Audio.wav"),
-        "Thanh": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Thanh-Merge_Audio.wav"),
-        "Quang": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Quang-Merge_Audio.wav"),
-        "Quân": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Quan-Merge_Audio.wav"),
-        "Sum": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Sum-Merge_Audio.wav"),
-        "Đạt": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Dat-Merge_Audio.wav"),
-    }
-    # Loại bỏ các embedding None (nếu có lỗi)
-    user_embeddings = {k: v for k, v in user_embeddings.items() if v is not None}
-    if not user_embeddings:
-        raise Exception("Không load được embedding nào!")
-    print("✅ Đã load xong tất cả các mẫu giọng nói!")
-except Exception as e:
-    print(f"Lỗi khi load mẫu giọng nói: {e}")
-    exit(1)
+# try:
+#     user_embeddings = {
+#         "Trí": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Tri-Merge_Audio.wav"),
+#         "Phát": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Phat-Merge_Audio.wav"),
+#         "Lê Ngọc Thanh": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Thanh-Merge_Audio.wav"),
+#         "Lưu Duy Quang": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Quang-Merge_Audio.wav"),
+#         "Ngô Nguyễn Tấn Quân": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Quan-Merge_Audio.wav"),
+#         "Phan Thanh Sum": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Sum-Merge_Audio.wav"),
+#         "Đạt": prepare_base_embedding("/home/pi/Desktop/09_06/IOT/audio_samples/Dat-Merge_Audio.wav"),
+#     }
+#     # Loại bỏ các embedding None (nếu có lỗi)
+#     user_embeddings = {k: v for k, v in user_embeddings.items() if v is not None}
+#     if not user_embeddings:
+#         raise Exception("Không load được embedding nào!")
+#     print("✅ Đã load xong tất cả các mẫu giọng nói!")
+# except Exception as e:
+#     print(f"Lỗi khi load mẫu giọng nói: {e}")
+#     exit(1)
 
 # Khởi tạo ứng dụng Flask
 # app = Flask(__name__) # Commented out Flask app initialization
@@ -151,7 +156,10 @@ except Exception as e:
 # Hàm điều khiển thiết bị
 def control_device(device, action):
     try:
-        if device == "cửa nhà xe":
+        if device == "cửa phòng khách":
+            motor.open_door_close_door(time_to_wait=3, open_duration=2, close_duration=2, speed=0.35)
+            print(f"Đã {action} cửa phòng khách")
+        elif device == "cửa nhà xe":
             if action == "mở":
                 stepper.rotate("forward", 5)
                 status_data["Garage Door"] = 1
@@ -161,7 +169,7 @@ def control_device(device, action):
         # elif device == "cửa phòng ngủ con cái": # Commented out as it's commented in your original
         #     servo_children.open_door_close_door(0, 6)
         elif device == "cửa phòng ngủ ba mẹ":
-            servo_parent.open_door_close_door(0, 6)
+            servo_parent.open_door_close_door(180, 6)
         elif device == "đèn phòng khách":
             if action == "bật":
                 led_living.on()
@@ -205,7 +213,7 @@ def control_device(device, action):
                 speak_text(f"Nhiệt độ hiện tại là {temperature} độ C và độ ẩm là {humidity} %")
         # Gửi trạng thái cập nhật đến ESP32 - Commented out as part of web communication
         # try:
-        #     response = requests.post("http://192.168.1.4:10000/message", json=status_data)
+        #     response = requests.post("http://192.168.1.199:10000/message", json=status_data)
         #     if response.status_code == 200:
         #         print("Đã gửi trạng thái đến ESP32")
         #     else:
@@ -240,34 +248,46 @@ def control_device(device, action):
 # flask_thread.start()
 
 # Hàm ghi âm và nhận diện giọng nói
+import json
+import numpy as np
+from collections import defaultdict, Counter
+import pyaudio
+import wave
+from pydub import AudioSegment
+import speech_recognition as sr
+import time
+from scipy.spatial.distance import cosine
+import logging
+
+logger = logging.getLogger(__name__)
+
 def record_audio():
-    audio = pyaudio.PyAudio()  # Khởi tạo PyAudio trong hàm
+    audio = pyaudio.PyAudio()  # Initialize PyAudio
     try:
         stream = audio.open(format=FORMAT, channels=CHANNELS,
-                             rate=RATE, input=True,
-                             frames_per_buffer=CHUNK)
+                            rate=RATE, input=True,
+                            frames_per_buffer=CHUNK)
 
         print("Recording...")
-
         frames = []
         start_time = time.time()
-        # Ghi âm cho đến khi cảm biến nhả ra (nếu không có hành động kéo dài audio)
-        # hoặc ghi âm một khoảng thời gian tối thiểu để đảm bảo đủ dữ liệu
-        while touch_sensor.is_touched() or (time.time() - start_time < 2): # Ghi ít nhất 2 giây hoặc cho đến khi nhả sensor
-            data = stream.read(CHUNK)
+        # Record while sensor is touched or for at least 2 seconds
+        while touch_sensor.is_touched() or (time.time() - start_time < 2):
+            data = stream.read(CHUNK, exception_on_overflow=False)
             frames.append(data)
             elapsed_time = time.time() - start_time
             print(f"Recording time: {elapsed_time:.2f} seconds", end="\r")
 
         stream.stop_stream()
         stream.close()
-        print("\nRecording finished.") # Newline after recording time updates
+        print("\nRecording finished.")
     except Exception as e:
         print(f"Error during audio recording: {e}")
         return
     finally:
-        audio.terminate()  # Đảm bảo đóng PyAudio
+        audio.terminate()
 
+    # Save raw audio
     try:
         with wave.open(WAVE_OUTPUT_RAW_FILENAME, 'wb') as wf:
             wf.setnchannels(CHANNELS)
@@ -276,12 +296,11 @@ def record_audio():
             wf.writeframes(b''.join(frames))
         print(f"Raw audio saved to {WAVE_OUTPUT_RAW_FILENAME}")
     except Exception as e:
-        print(f"Lỗi khi ghi file âm thanh: {e}")
+        print(f"Error saving audio file: {e}")
         return
 
+    # Process audio (resample and duplicate)
     try:
-        # Re-using the utility functions as per your original structure
-        # convert_sample_rate is defined twice in original, using the latter one
         convert_sample_rate(WAVE_OUTPUT_RAW_FILENAME, WAVE_OUTPUT_RESAMPLED_FILENAME, RESAMPLED_RATE)
         sound = AudioSegment.from_file(WAVE_OUTPUT_RESAMPLED_FILENAME, format="wav")
         duplicated_sound = sound * N_TIMES_DUPLICATE
@@ -291,63 +310,153 @@ def record_audio():
         print(f"Error processing audio file: {e}")
         return
 
+    # Speaker recognition
     try:
-        members = query_members(CONN)
+        # Query member files from the database
+        member_files = query_members_files(CONN)
+        logger.info(f"Retrieved {len(member_files)} member files from database.")
+
+        # Process database embeddings
+        user_embeddings = defaultdict(list)
+        expected_length = 128  # Match input embedding dimension
+        for i, member_file in enumerate(member_files):
+            features = member_file['features']
+            logger.info(f"Member File {i+1}:")
+            logger.info(f"  Member ID: {member_file['member_id']}")
+            logger.info(f"  Member Name: {member_file['member_name']}")
+            logger.info(f"  File Path: {member_file['file_path']}")
+
+            if features is None:
+                logger.warning(f"  Warning: Features are None for {member_file['member_name']} (file: {member_file['file_path']})")
+                continue
+            elif isinstance(features, str):
+                try:
+                    parsed_features = json.loads(features)
+                    embedding = np.array(parsed_features)
+                    logger.info(f"  Parsed Feature Shape: {embedding.shape}, Type: {type(embedding)}")
+                    if len(embedding.shape) == 2:  # If 2D array (e.g., (60, 128))
+                        embedding = np.mean(embedding, axis=0)  # Average over first dimension
+                    elif len(embedding.shape) != 1:
+                        logger.warning(f"  Warning: Unexpected embedding shape {embedding.shape} for {member_file['member_name']}")
+                        continue
+                    logger.info(f"  Aggregated Feature Length: {len(embedding)}")
+                except json.JSONDecodeError as e:
+                    logger.error(f"  Error: Failed to parse features string for {member_file['member_name']}: {e}")
+                    logger.info(f"  Raw Features: {features}")
+                    continue
+            else:
+                embedding = np.array(features).flatten()
+                logger.info(f"  Feature Length: {len(embedding)}")
+                logger.info(f"  Feature Shape: {embedding.shape}")
+
+            if len(embedding) != expected_length:
+                logger.warning(f"  Skipping {member_file['member_name']} (file: {member_file['file_path']}): Embedding length {len(embedding)} does not match expected {expected_length}")
+                continue
+            user_embeddings[member_file['member_name']].append((embedding, member_file['file_path']))
+            logger.info("---------------------------------\n")
+
+        if not user_embeddings:
+            logger.error("No valid embeddings for comparison.")
+            return
+
+        # Query permissions
         permissions = query_permissions(CONN)
-        check_permission = defaultdict(lambda: defaultdict(lambda: False))
+        check_permission = defaultdict(lambda: defaultdict(bool))
         for permission in permissions:
             check_permission[permission.member_name][permission.appliance_name] = True
 
+        # Get audio embedding for the input WAV file
         audio_file_embedding = inference.get_embedding(WAVE_OUTPUT_RESAMPLED_FILENAME, SPEAKER_RECOGNITION_MODEL)
-        speaker_cosine_similarity = {}
+        if audio_file_embedding is None:
+            logger.error("Failed to generate embedding for input WAV file.")
+            return
+        audio_file_embedding = np.array(audio_file_embedding).flatten()
+        logger.info(f"Input WAV embedding shape: {audio_file_embedding.shape}, sample: {audio_file_embedding[:5]}")
 
-        for member_name, embedding in user_embeddings.items():
-            if embedding is not None:
-                similarity = inference.compute_cosine_similarity(embedding, audio_file_embedding)
-                speaker_cosine_similarity[member_name] = similarity
-                print(f"\033[94m {member_name}: {similarity}\033[0m")
+        # Validate input embedding length
+        if len(audio_file_embedding) != expected_length:
+            logger.warning(f"Input WAV embedding length {len(audio_file_embedding)} does not match database embedding length {expected_length}.")
+            if len(audio_file_embedding) > expected_length:
+                audio_file_embedding = audio_file_embedding[:expected_length]
+                logger.info(f"Truncated input embedding to length {expected_length}")
+            else:
+                audio_file_embedding = np.pad(audio_file_embedding, (0, expected_length - len(audio_file_embedding)), mode='constant')
+                logger.info(f"Padded input embedding to length {expected_length}")
 
-        if not speaker_cosine_similarity:
-            print("Không có embedding hợp lệ để so sánh.")
+        # Compute cosine similarities
+        all_distances = []
+        mean_distances = {}
+        for speaker in user_embeddings:
+            distances = []
+            for emb, file_path in user_embeddings[speaker]:
+                try:
+                    similarity = 1 - cosine(audio_file_embedding, emb)
+                    if similarity is not None:
+                        all_distances.append((similarity, speaker, file_path))
+                        distances.append(similarity)
+                    else:
+                        logger.warning(f"Cosine similarity returned None for {speaker} (file: {file_path})")
+                except Exception as e:
+                    logger.warning(f"Error computing cosine similarity for {speaker} (file: {file_path}): {e}")
+                    continue
+            mean_distances[speaker] = np.mean(distances) if distances else float('-inf')
+
+        if not all_distances:
+            logger.error("No valid cosine similarities computed.")
             return
 
-        predicted_speaker = max(speaker_cosine_similarity, key=speaker_cosine_similarity.get)
-        print(f"\033[92mNgười được dự đoán: {predicted_speaker}\033[0m")
-    except Exception as e:
-        print(f"Error in speaker recognition: {e}")
-        return
+        # KNN prediction
+        K_NEAREST_NEIGHBOURS = 5  # Adjust as needed
+        sorted_distances = sorted(all_distances, key=lambda x: x[0], reverse=True)
+        knn_predictions = [speaker for _, speaker, _ in sorted_distances[:K_NEAREST_NEIGHBOURS]]
+        predicted_speaker_knn = Counter(knn_predictions).most_common(1)[0][0]
 
-    try:
+        # Mean distance prediction
+        predicted_speaker_mean = max(mean_distances, key=mean_distances.get)
+        max_mean_distance = mean_distances[predicted_speaker_mean]
+
+        # Print results
+        logger.info("\n--- Mean Cosine Similarity ---")
+        for speaker, distance in mean_distances.items():
+            logger.info(f"  - {speaker}: {distance:.4f}")
+        logger.info(f"\n--- K-Nearest Neighbors Prediction (K={K_NEAREST_NEIGHBOURS}) ---")
+        logger.info(f"Top {K_NEAREST_NEIGHBOURS} nearest neighbors: {knn_predictions}")
+        logger.info(f"\033[94mPredicted Speaker (KNN): {predicted_speaker_knn}\033[0m")
+        logger.info(f"\n--- Mean Distance Prediction ---")
+        logger.info(f"Predicted Speaker (Mean): {predicted_speaker_mean} (similarity: {max_mean_distance:.4f})")
+
+        # Speech recognition
         recognizer = sr.Recognizer()
         with sr.AudioFile(WAVE_OUTPUT_RAW_FILENAME) as source:
             audio_data = recognizer.record(source)
             try:
                 content = recognizer.recognize_google(audio_data, language="vi-VN").lower()
-                print("Văn bản được nhận dạng: ", content)
+                print("Recognized text: ", content)
             except sr.UnknownValueError:
-                print("Không thể nhận dạng văn bản từ âm thanh.")
+                print("Could not recognize text from audio.")
                 return
             except sr.RequestError as e:
-                print("Lỗi trong quá trình gửi yêu cầu: ", e)
+                print(f"Error in speech recognition request: {e}")
                 return
+
+        action, device = extract_action_and_device(content)
+        print(f"Action: {action} Device: {device}")
+
+        predicted_speaker = predicted_speaker_knn  # Use KNN prediction
+        if action is None or device is None:
+            speak_text("Thiết bị hoặc hành động không nhận diện được")
+            print(f"\033[92mThiết bị hoặc hành động không nhận diện được\033[0m")
+        elif check_permission[predicted_speaker][device]:
+            speak_text(f"Xin chào {predicted_speaker}. Bạn có quyền {action} {device}")
+            print(f"\033[92m{predicted_speaker} có quyền {action} {device}\033[0m")
+            control_device(device, action)
+        else:
+            speak_text(f"Xin chào {predicted_speaker}. Bạn không có quyền {action} {device}")
+            print(f"\033[91m{predicted_speaker} không có quyền {action} {device}\033[0m")
+
     except Exception as e:
-        print(f"Error in speech recognition: {e}")
+        logger.error(f"Error in speaker recognition: {e}")
         return
-
-    action, device = extract_action_and_device(content)
-    print(f"Action: {action} Device: {device}")
-
-    if action is None or device is None:
-        speak_text("Thiết bị hoặc hành động không nhận diện được")
-        print(f"\033[92mThiết bị hoặc hành động không nhận diện được\033[0m")
-    elif check_permission[predicted_speaker][device]:
-        speak_text(f"Xin chào {predicted_speaker}. Bạn có quyền {action} {device}")
-        print(f"\033[92m{predicted_speaker} có quyền {action} {device}\033[0m")
-        control_device(device, action)
-    else:
-        speak_text(f"Xin chào {predicted_speaker}. Bạn không có quyền {action} {device}")
-        print(f"\033[91m{predicted_speaker} không có quyền {action} {device}\033[0m")
-
 # Vòng lặp chính
 try:
     print("Ready...")
@@ -358,6 +467,7 @@ try:
         # Đọc dữ liệu DHT11 và cập nhật trạng thái (nếu cần gửi đi, nhưng hiện tại đã comment)
         try:
             humidity, temperature = dht.read_dht11()
+            # print(f"Humidity: {humidity}, Temperature: {temperature}")
             if humidity is not None and temperature is not None:
                 status_data["Humidity"] = humidity
                 status_data["Temperature"] = temperature

@@ -30,7 +30,7 @@ class MotorController:
         self.pwm.value = speed  # Set speed
         print(f"Motor running at {speed*100}% speed for closing.")
 
-    def open_close_sequence(self, time_to_wait, open_duration=2, close_duration=2, speed=0.35):
+    def open_door_close_door(self, time_to_wait, open_duration=2, close_duration=2, speed=0.35):
         """Open and close door for fixed durations without limit switches."""
         try:
             # Open the door
@@ -63,7 +63,7 @@ class MotorController:
 #     )
 #     print("Motor controller initialized.")
 #     # Example usage: open, wait, then close with default speed
-#     door_controller.open_close_sequence(time_to_wait=3, open_duration=2, close_duration=2, speed=0.35) # Increased speed to 70%
+#     door_controller.open_door_close_door(time_to_wait=3, open_duration=2, close_duration=2, speed=0.35) # Increased speed to 70%
 
 # except KeyboardInterrupt:
 #     print("Program interrupted by user.")
